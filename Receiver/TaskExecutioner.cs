@@ -7,7 +7,7 @@ namespace RmqTasking
     {
         public static async void Execute(TaskModel obj)
         {
-            await Task.Run(() => ShowDelay(obj));
+            await ShowDelay(obj);
         }
 
         private static async Task ShowDelay(TaskModel obj)
