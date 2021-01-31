@@ -8,7 +8,7 @@ namespace RmqTasking
 {
     public class Receiver
     {
-        public void Start()
+        public async void Start()
         {
             var factory = new ConnectionFactory() { HostName = "localhost" };
             using var connection = factory.CreateConnection();
