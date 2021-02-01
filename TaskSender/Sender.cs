@@ -39,9 +39,9 @@ namespace TaskSender
         {
             return new List<TaskModel>()
             {
-                new TaskModel("A", 5),
-                new TaskModel("B", 15),
-                new TaskModel("C", 10),
+                new TaskModel("A", 10),
+                new TaskModel("B", 5),
+                new TaskModel("C", 15),
             };
         }
     }

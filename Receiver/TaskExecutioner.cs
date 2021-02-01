@@ -5,9 +5,9 @@ namespace RmqTasking
 {
     public class TaskExecutioner
     {
-        public static async void Execute(TaskModel obj)
+        public static Task Execute(TaskModel obj)
         {
-            await ShowDelay(obj);
+            return ShowDelay(obj);
         }
 
         private static async Task ShowDelay(TaskModel obj)
