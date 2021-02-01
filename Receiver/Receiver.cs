@@ -29,7 +29,17 @@ namespace RmqTasking
             Console.WriteLine(" [*] Waiting for messages.");
 
             var consumer = new EventingBasicConsumer(channel);
-            consumer.Received += async (model, ea) =>
+            consumer.Received += consumerOnReceived();
+
+            channel.BasicConsume(queue: "hello", autoAck: true, consumer: consumer);
+
+            Console.WriteLine(" Press [enter] to exit.");
+            Console.ReadLine();
+        }
+
+        private static EventHandler<BasicDeliverEventArgs> consumerOnReceived()
+        {
+            return async (model, ea) =>
             {
                 var task = new TaskExecutioner("a1");
                 var tokenSource = new CancellationTokenSource();
@@ -47,12 +57,6 @@ namespace RmqTasking
                     Console.WriteLine(" [x] Received {0}", message);
                 }
             };
-
-            channel.BasicConsume(queue: "hello", autoAck: true, consumer: consumer);
-
-            Console.WriteLine(" Press [enter] to exit.");
-            Console.ReadLine();
         }
-        
     }
 }
