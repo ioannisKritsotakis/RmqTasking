@@ -50,18 +50,16 @@ namespace RmqTasking
 
         private EventHandler<BasicDeliverEventArgs> consumerOnReceived()
         {
-            return async (model, ea) =>
+            return (model, ea) =>
             {
-                var task = new TaskExecutioner("a1");
-                var tokenSource = new CancellationTokenSource();
+                var task = new TaskDistributor();
                 var body = ea.Body.ToArray();
                 var message = Encoding.UTF8.GetString(body);
                 try
                 {
                     var obj = JsonConvert.DeserializeObject<TaskModel>(message);
                     // Send to appropriate Task. Create if needed.
-                    task.Enqueue(obj);
-                    await task.Consume(_tokenSource.Token);
+                    task.Distribute(obj, _tokenSource.Token);
                 }
                 catch (Exception)
                 {
