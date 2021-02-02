@@ -30,7 +30,7 @@ namespace Receiver
         {
             // Receive the messages with id {Id} and process them
             // When finished close gracefully. CancellationTokenSource
-            while (!ModelReader.Completion.IsCompleted)
+            while (!ModelReader.Completion.IsCompleted && !cancellationToken.IsCancellationRequested)
             {
                 try
                 {
@@ -40,7 +40,8 @@ namespace Receiver
                 }
                 catch (OperationCanceledException)
                 {
-                    ;
+                    Console.WriteLine($"The operation was cancelled for {Id}");
+                    await Task.CompletedTask;
                 }
             }
 

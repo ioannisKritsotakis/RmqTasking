@@ -12,11 +12,20 @@ namespace RmqTasking
 {
     public class Receiver
     {
-        private readonly Channel<TaskModel> _channel;
-
+        private readonly CancellationTokenSource _tokenSource;
         public Receiver()
         {
-            _channel = Channel.CreateUnbounded<TaskModel>();
+            _tokenSource = new CancellationTokenSource();
+            Console.CancelKeyPress += ConsoleOnCancelKeyPress();
+
+        }
+
+        private ConsoleCancelEventHandler ConsoleOnCancelKeyPress()
+        {
+            return delegate (object sender, ConsoleCancelEventArgs e) {
+                e.Cancel = true;
+                _tokenSource.Cancel();
+            };
         }
 
         public void Start()
@@ -24,6 +33,7 @@ namespace RmqTasking
             var factory = new ConnectionFactory() { HostName = "localhost" };
             using var connection = factory.CreateConnection();
             using var channel = connection.CreateModel();
+
             channel.QueueDeclare(queue: "hello", durable: false, exclusive: false, autoDelete: false, arguments: null);
 
             Console.WriteLine(" [*] Waiting for messages.");
@@ -35,9 +45,10 @@ namespace RmqTasking
 
             Console.WriteLine(" Press [enter] to exit.");
             Console.ReadLine();
+            _tokenSource.Cancel();
         }
 
-        private static EventHandler<BasicDeliverEventArgs> consumerOnReceived()
+        private EventHandler<BasicDeliverEventArgs> consumerOnReceived()
         {
             return async (model, ea) =>
             {
@@ -50,7 +61,7 @@ namespace RmqTasking
                     var obj = JsonConvert.DeserializeObject<TaskModel>(message);
                     // Send to appropriate Task. Create if needed.
                     task.Enqueue(obj);
-                    await task.Consume(tokenSource.Token);
+                    await task.Consume(_tokenSource.Token);
                 }
                 catch (Exception)
                 {
