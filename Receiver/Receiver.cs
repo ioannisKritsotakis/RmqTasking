@@ -6,11 +6,16 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Receiver;
 
 namespace RmqTasking
 {
-    public class Receiver
+    public interface IReceiver
+    {
+    }
+
+    public class Receiver: BackgroundService, IHostedService, IReceiver
     {
         private readonly CancellationTokenSource _tokenSource;
         public Receiver()
@@ -66,6 +71,12 @@ namespace RmqTasking
                     Console.WriteLine(" [x] Received {0}", message);
                 }
             };
+        }
+
+        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            Console.WriteLine("Executing...");
+           return Task.Run(Start, stoppingToken);
         }
     }
 }
