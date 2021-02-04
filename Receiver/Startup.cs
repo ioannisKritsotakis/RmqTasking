@@ -23,7 +23,7 @@ namespace Receiver
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddHostedService<RmqTasking.Receiver>();
+            services.AddHostedService<Receiver>();
 
         }
 
