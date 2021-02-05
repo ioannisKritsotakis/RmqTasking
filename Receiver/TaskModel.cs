@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using System;
+using Newtonsoft.Json;
 
 namespace RmqTasking
 {
@@ -17,5 +18,8 @@ namespace RmqTasking
 
         [JsonProperty("delay")]
         public int DelayInSeconds;
+
+        [JsonIgnore]
+        public Guid ExecutionId = Guid.NewGuid();
     }
 }

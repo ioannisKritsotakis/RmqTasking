@@ -49,10 +49,10 @@ namespace Receiver
 
         private static async Task ShowDelay(TaskModel obj, CancellationToken cancellationToken)
         {
-            Console.WriteLine($"Received Task {obj.Id}");
+            Console.WriteLine($"Received Task {obj.Id} with execId: {obj.ExecutionId}");
             Console.WriteLine($"Awaiting {obj.DelayInSeconds} seconds for Task {obj.Id}");
             await Task.Delay(TimeSpan.FromSeconds(obj.DelayInSeconds), cancellationToken);
-            Console.WriteLine($"Finished awaiting {obj.DelayInSeconds} seconds for Task {obj.Id}");
+            Console.WriteLine($"Finished awaiting {obj.DelayInSeconds} seconds for Task {obj.Id} with execId: {obj.ExecutionId}");
         }
     }
 }

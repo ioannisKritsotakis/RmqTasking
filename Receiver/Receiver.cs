@@ -13,11 +13,12 @@ namespace RmqTasking
     public class Receiver
     {
         private readonly CancellationTokenSource _tokenSource;
+        private TaskDistributor _taskDistributor;
         public Receiver()
         {
             _tokenSource = new CancellationTokenSource();
             Console.CancelKeyPress += ConsoleOnCancelKeyPress();
-
+            _taskDistributor = new TaskDistributor();
         }
 
         private ConsoleCancelEventHandler ConsoleOnCancelKeyPress()
@@ -33,7 +34,7 @@ namespace RmqTasking
             var factory = new ConnectionFactory() { HostName = "localhost" };
             using var connection = factory.CreateConnection();
             using var channel = connection.CreateModel();
-
+            channel.BasicQos(0,1000, false);
             channel.QueueDeclare(queue: "hello", durable: false, exclusive: false, autoDelete: false, arguments: null);
 
             Console.WriteLine(" [*] Waiting for messages.");
@@ -52,14 +53,14 @@ namespace RmqTasking
         {
             return (model, ea) =>
             {
-                var task = new TaskDistributor();
+               
                 var body = ea.Body.ToArray();
                 var message = Encoding.UTF8.GetString(body);
                 try
                 {
                     var obj = JsonConvert.DeserializeObject<TaskModel>(message);
                     // Send to appropriate Task. Create if needed.
-                    task.Distribute(obj, _tokenSource.Token);
+                    _taskDistributor.Distribute(obj, _tokenSource.Token);
                 }
                 catch (Exception)
                 {
