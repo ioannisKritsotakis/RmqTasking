@@ -1,12 +1,13 @@
-﻿using System;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RmqTasking;
+using System;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Receiver
 {
@@ -14,22 +15,14 @@ namespace Receiver
     {
     }
 
-    public class Receiver: BackgroundService, IHostedService, IReceiver
+    public class Receiver : BackgroundService, IReceiver
     {
-        private readonly CancellationTokenSource _tokenSource;
-        public Receiver()
+        private readonly ILogger<Receiver> _logger;
+        private readonly IDistributionChannel _distributionChannel;
+        public Receiver(IDistributionChannel distributionChannel, ILogger<Receiver> logger)
         {
-            _tokenSource = new CancellationTokenSource();
-            Console.CancelKeyPress += ConsoleOnCancelKeyPress();
-
-        }
-
-        private ConsoleCancelEventHandler ConsoleOnCancelKeyPress()
-        {
-            return delegate (object sender, ConsoleCancelEventArgs e) {
-                e.Cancel = true;
-                _tokenSource.Cancel();
-            };
+            _distributionChannel = distributionChannel;
+            _logger = logger;
         }
 
         public void Start()
@@ -43,27 +36,25 @@ namespace Receiver
             Console.WriteLine(" [*] Waiting for messages.");
 
             var consumer = new EventingBasicConsumer(channel);
-            consumer.Received += consumerOnReceived();
+            consumer.Received += ConsumerOnReceived();
 
             channel.BasicConsume(queue: "hello", autoAck: true, consumer: consumer);
 
             Console.WriteLine(" Press [enter] to exit.");
             Console.ReadLine();
-            _tokenSource.Cancel();
         }
 
-        private EventHandler<BasicDeliverEventArgs> consumerOnReceived()
+        private EventHandler<BasicDeliverEventArgs> ConsumerOnReceived()
         {
             return (model, ea) =>
             {
-                var task = new TaskDistributor();
+                _logger.LogInformation("Received a msg");
                 var body = ea.Body.ToArray();
                 var message = Encoding.UTF8.GetString(body);
                 try
                 {
                     var obj = JsonConvert.DeserializeObject<TaskModel>(message);
-                    // Send to appropriate Task. Create if needed.
-                    task.Distribute(obj, _tokenSource.Token);
+                    _distributionChannel.WriteToChannel(obj);
                 }
                 catch (Exception)
                 {
@@ -74,8 +65,8 @@ namespace Receiver
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            Console.WriteLine("Executing...");
-           return Task.Run(Start, stoppingToken);
+            _logger.LogInformation("Executing Receiver");
+            return Task.Run(Start, stoppingToken);
         }
     }
 }

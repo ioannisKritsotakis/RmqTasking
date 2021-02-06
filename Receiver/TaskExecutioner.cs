@@ -1,26 +1,30 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using RmqTasking;
+using System;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using RmqTasking;
 
 namespace Receiver
 {
     public class TaskExecutioner
     {
-        private Channel<TaskModel> _channel;
+        private readonly Channel<TaskModel> _channel;
 
         public string Id { get; }
         private ChannelReader<TaskModel> ModelReader { get; }
 
-        public TaskExecutioner(string id)
+        private readonly ILogger<TaskDistributor> _logger;
+
+        public TaskExecutioner(string id, ILogger<TaskDistributor> logger)
         {
             _channel = Channel.CreateUnbounded<TaskModel>();
             ModelReader = _channel.Reader;
             Id = id;
+            _logger = logger;
         }
 
-        public bool Enqueue(TaskModel taskModel)
+        public bool SendJob(TaskModel taskModel)
         {
             return _channel.Writer.TryWrite(taskModel);
         }
@@ -47,12 +51,12 @@ namespace Receiver
 
         }
 
-        private static async Task ShowDelay(TaskModel obj, CancellationToken cancellationToken)
+        private async Task ShowDelay(TaskModel obj, CancellationToken cancellationToken)
         {
-            Console.WriteLine($"Received Task {obj.Id}");
-            Console.WriteLine($"Awaiting {obj.DelayInSeconds} seconds for Task {obj.Id}");
+            _logger.LogInformation($"Received Task {obj.Id}");
+            _logger.LogInformation($"Awaiting {obj.DelayInSeconds} seconds for Task {obj.Id}");
             await Task.Delay(TimeSpan.FromSeconds(obj.DelayInSeconds), cancellationToken);
-            Console.WriteLine($"Finished awaiting {obj.DelayInSeconds} seconds for Task {obj.Id}");
+            _logger.LogInformation($"Finished awaiting {obj.DelayInSeconds} seconds for Task {obj.Id}");
         }
     }
 }

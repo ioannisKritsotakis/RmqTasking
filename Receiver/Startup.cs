@@ -1,9 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
-using RmqTasking;
 
 namespace Receiver
 {
@@ -25,11 +23,16 @@ namespace Receiver
         {
             services.AddHostedService<Receiver>();
 
+            services.AddSingleton<IDistributionChannel, DistributionChannel>();
+            services.AddHostedService<DistributionChannel>();
+
+            //services.AddSingleton<ITaskDistributor, TaskDistributor>();
+            services.AddHostedService<TaskDistributor>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-           
+
         }
     }
 }

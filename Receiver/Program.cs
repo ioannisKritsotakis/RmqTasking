@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using RmqTasking;
 
 namespace Receiver
 {
@@ -21,8 +19,6 @@ namespace Receiver
                 {
                     webBuilder.UseStartup<Startup>();
                 })
-                .ConfigureServices(services =>
-                {
-                });
+                .ConfigureServices(services => { });
     }
 }
