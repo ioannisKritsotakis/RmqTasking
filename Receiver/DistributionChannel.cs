@@ -1,9 +1,5 @@
-﻿using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using RmqTasking;
-using System.Threading;
+﻿using RmqTasking;
 using System.Threading.Channels;
-using System.Threading.Tasks;
 
 namespace Receiver
 {
@@ -13,36 +9,20 @@ namespace Receiver
         ChannelReader<TaskModel> Reader { get; }
     }
 
-    public class DistributionChannel : IHostedService, IDistributionChannel
+    public class DistributionChannel : IDistributionChannel
     {
         private readonly Channel<TaskModel> _channel;
 
         public ChannelReader<TaskModel> Reader => _channel.Reader;
 
-        private ILogger<DistributionChannel> _Logger;
-
-        public DistributionChannel(ILogger<DistributionChannel> logger)
+        public DistributionChannel()
         {
-            _Logger = logger;
             _channel = Channel.CreateUnbounded<TaskModel>();
         }
 
         public bool WriteToChannel(TaskModel item)
         {
             return _channel.Writer.TryWrite(item);
-        }
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            _Logger.LogInformation("Starting DistributionChannel");
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            _Logger.LogInformation("Starting DistributionChannel");
-            return Task.CompletedTask;
-
         }
     }
 }

@@ -24,7 +24,6 @@ namespace Receiver
             services.AddHostedService<Receiver>();
 
             services.AddSingleton<IDistributionChannel, DistributionChannel>();
-            services.AddHostedService<DistributionChannel>();
 
             //services.AddSingleton<ITaskDistributor, TaskDistributor>();
             services.AddHostedService<TaskDistributor>();

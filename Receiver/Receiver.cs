@@ -48,7 +48,6 @@ namespace Receiver
         {
             return (model, ea) =>
             {
-                _logger.LogInformation("Received a msg");
                 var body = ea.Body.ToArray();
                 var message = Encoding.UTF8.GetString(body);
                 try
