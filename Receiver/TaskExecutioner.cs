@@ -16,7 +16,6 @@ namespace Receiver
 
         private readonly ILogger<TaskDistributor> _logger;
         private readonly CancellationToken _cancellationToken;
-        private readonly Channel<CancellationToken> _internalChannel;
 
         public TaskExecutioner(string id, ILogger<TaskDistributor> logger, CancellationToken cancellationToken)
         {
@@ -25,10 +24,7 @@ namespace Receiver
             Id = id;
             _logger = logger;
             _cancellationToken = cancellationToken;
-
-            _internalChannel = Channel.CreateUnbounded<CancellationToken>();
-            _internalChannel.Writer.TryWrite(cancellationToken);
-            Receive();
+            _ = InitiateReceiving();
         }
 
         public bool SendJob(TaskModel taskModel)
@@ -36,9 +32,8 @@ namespace Receiver
             return _channel.Writer.TryWrite(taskModel);
         }
 
-        private async void Receive()
+        private async Task InitiateReceiving()
         {
-            var token = await _internalChannel.Reader.ReadAsync(_cancellationToken);
             await Consume();
         }
 
@@ -53,12 +48,11 @@ namespace Receiver
                 {
                     _cancellationToken.ThrowIfCancellationRequested();
                     var taskModel = await ModelReader.ReadAsync(_cancellationToken);
-                    _logger.LogInformation($"Running operations for Task {taskModel.Id}");
                     await ShowDelay(taskModel, _cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
-                    Console.WriteLine($"The operation was cancelled for {Id}");
+                    _logger.LogWarning($"The operation was cancelled for {Id}");
                     await Task.CompletedTask;
                 }
             }

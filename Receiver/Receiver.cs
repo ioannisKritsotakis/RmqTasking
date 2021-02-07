@@ -57,14 +57,13 @@ namespace Receiver
                 }
                 catch (Exception)
                 {
-                    Console.WriteLine(" [x] Received {0}", message);
+                    _logger.LogError(" [x] Received {0}", message);
                 }
             };
         }
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Executing Receiver");
             return Task.Run(Start, stoppingToken);
         }
     }
