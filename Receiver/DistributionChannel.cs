@@ -1,5 +1,4 @@
-﻿using RmqTasking;
-using System.Threading.Channels;
+﻿using System.Threading.Channels;
 
 namespace Receiver
 {

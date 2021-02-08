@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using RmqTasking;
 using System;
 using System.Text;
 using System.Threading;
@@ -25,7 +24,7 @@ namespace Receiver
             _logger = logger;
         }
 
-        public void Start()
+        public void MainBody()
         {
             var factory = new ConnectionFactory() { HostName = "localhost" };
             using var connection = factory.CreateConnection();
@@ -33,14 +32,12 @@ namespace Receiver
 
             channel.QueueDeclare(queue: "hello", durable: false, exclusive: false, autoDelete: false, arguments: null);
 
-            Console.WriteLine(" [*] Waiting for messages.");
+            _logger.LogInformation(" [*] Waiting for messages.");
 
             var consumer = new EventingBasicConsumer(channel);
             consumer.Received += ConsumerOnReceived();
 
             channel.BasicConsume(queue: "hello", autoAck: true, consumer: consumer);
-
-            Console.WriteLine(" Press [enter] to exit.");
             Console.ReadLine();
         }
 
@@ -64,7 +61,13 @@ namespace Receiver
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            return Task.Run(Start, stoppingToken);
+            return Task.Run(MainBody, stoppingToken);
+        }
+
+        public override Task StartAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("Starting Receiver");
+            return base.StartAsync(cancellationToken);
         }
     }
 }

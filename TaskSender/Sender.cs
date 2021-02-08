@@ -1,9 +1,9 @@
 ﻿using Newtonsoft.Json;
 using RabbitMQ.Client;
-using RmqTasking;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Receiver;
 
 namespace TaskSender
 {
@@ -30,18 +30,21 @@ namespace TaskSender
                 }
 
             }
-
-            Console.WriteLine(" Press [enter] to exit.");
-            Console.ReadLine();
         }
 
-        private static List<TaskModel> Data()
+        private static IEnumerable<TaskModel> Data()
         {
             return new List<TaskModel>()
             {
-                new TaskModel("A", 10),
-                new TaskModel("B", 5),
-                new TaskModel("C", 15),
+                new TaskModel("A", 2, 1),
+                new TaskModel("B", 5, 2),
+                new TaskModel("C", 3, 3),
+                //new TaskModel("B", 5, 4),
+                //new TaskModel("D", 2, 5),
+                //new TaskModel("A", 3, 6),
+                //new TaskModel("C", 7, 8),
+                //new TaskModel("A", 8, 9),
+                //new TaskModel("D", 4, 10),
             };
         }
     }

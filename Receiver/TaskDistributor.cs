@@ -25,17 +25,19 @@ namespace Receiver
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            _logger.LogDebug("Started TaskDistributor");
             while (!_distributionChannel.Reader.Completion.IsCompleted && !cancellationToken.IsCancellationRequested)
             {
                 try
                 {
                     var item = await _distributionChannel.Reader.ReadAsync(cancellationToken);
-                    var res = _runningTasks.TryGetValue(item.Id, out var runTask);
+                    var res = _runningTasks.TryGetValue(item.Type, out var runTask);
                     if (!res)
                     {
-                        _logger.LogDebug($"Creating new TaskExecutioner for {item.Id}");
-                        runTask = new TaskExecutioner(item.Id, _logger, cancellationToken);
-                        _runningTasks.Add(item.Id, runTask);
+                        _logger.LogDebug($"Creating new TaskExecutioner for type {item.Type}");
+                        runTask = new TaskExecutioner(item.Type, _logger);
+                        _runningTasks.Add(item.Type, runTask);
+                        runTask.Consume(cancellationToken);
                     }
 
                     runTask.SendJob(item);

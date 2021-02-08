@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using RmqTasking;
 using System;
 using System.Threading;
 using System.Threading.Channels;
@@ -11,20 +10,17 @@ namespace Receiver
     {
         private readonly Channel<TaskModel> _channel;
 
-        public string Id { get; }
+        public string Type { get; }
         private ChannelReader<TaskModel> ModelReader { get; }
 
         private readonly ILogger<TaskDistributor> _logger;
-        private readonly CancellationToken _cancellationToken;
 
-        public TaskExecutioner(string id, ILogger<TaskDistributor> logger, CancellationToken cancellationToken)
+        public TaskExecutioner(string type, ILogger<TaskDistributor> logger)
         {
             _channel = Channel.CreateUnbounded<TaskModel>();
             ModelReader = _channel.Reader;
-            Id = id;
+            Type = type;
             _logger = logger;
-            _cancellationToken = cancellationToken;
-            _ = InitiateReceiving();
         }
 
         public bool SendJob(TaskModel taskModel)
@@ -32,39 +28,36 @@ namespace Receiver
             return _channel.Writer.TryWrite(taskModel);
         }
 
-        private async Task InitiateReceiving()
+        public async Task Consume(CancellationToken cancellationToken)
         {
-            await Consume();
-        }
-
-
-        public async Task Consume()
-        {
-            // Receive the messages with id {Id} and process them
-            // When finished close gracefully. CancellationTokenSource
-            while (!ModelReader.Completion.IsCompleted && !_cancellationToken.IsCancellationRequested)
+            await Task.Run(async () =>
             {
-                try
+                // Receive the messages with id {Id} and process them
+                // When finished close gracefully. CancellationTokenSource
+                while (!ModelReader.Completion.IsCompleted && !cancellationToken.IsCancellationRequested)
                 {
-                    _cancellationToken.ThrowIfCancellationRequested();
-                    var taskModel = await ModelReader.ReadAsync(_cancellationToken);
-                    await ShowDelay(taskModel, _cancellationToken);
+                    try
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var taskModel = await ModelReader.ReadAsync(cancellationToken);
+                        await ShowDelay(taskModel, cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        _logger.LogWarning($"The operation was cancelled for Task Executioner of type {Type}");
+                        await Task.CompletedTask;
+                    }
                 }
-                catch (OperationCanceledException)
-                {
-                    _logger.LogWarning($"The operation was cancelled for {Id}");
-                    await Task.CompletedTask;
-                }
-            }
+            }, cancellationToken);
 
         }
 
         private async Task ShowDelay(TaskModel obj, CancellationToken cancellationToken)
         {
-            _logger.LogInformation($"Received Task {obj.Id}");
-            _logger.LogInformation($"Awaiting {obj.DelayInSeconds} seconds for Task {obj.Id}");
+            _logger.LogInformation($"Task {obj.Type} with id: {obj.Id:D2} - Received");
+            _logger.LogInformation($"Task {obj.Type} with id: {obj.Id:D2} - Awaiting {obj.DelayInSeconds} seconds");
             await Task.Delay(TimeSpan.FromSeconds(obj.DelayInSeconds), cancellationToken);
-            _logger.LogInformation($"Finished awaiting {obj.DelayInSeconds} seconds for Task {obj.Id}");
+            _logger.LogInformation($"Task {obj.Type} with id: {obj.Id:D2} - Finished awaiting {obj.DelayInSeconds} seconds");
         }
     }
 }

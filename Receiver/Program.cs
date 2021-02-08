@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Hosting;
+﻿using System.Diagnostics;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -30,12 +31,11 @@ namespace Receiver
         private static ILogger BuildLogger(IConfiguration appConfiguration)
         {
             return new LoggerConfiguration()
-                .ReadFrom.Configuration(appConfiguration, "Serilog")
                 .Enrich.WithProcessId()
                 .Enrich.WithThreadId()
                 .Enrich.WithMemoryUsage()
+                .ReadFrom.Configuration(appConfiguration, "Serilog")
                 .CreateLogger();
-
         }
 
         private static IConfigurationRoot BuildConfiguration(string[] args)
