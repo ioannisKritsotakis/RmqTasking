@@ -15,6 +15,8 @@ namespace Receiver
 
         private readonly ILogger<TaskDistributor> _logger;
 
+        public Task _task;
+
         public TaskExecutioner(string type, ILogger<TaskDistributor> logger)
         {
             _channel = Channel.CreateUnbounded<TaskModel>();
@@ -28,28 +30,33 @@ namespace Receiver
             return _channel.Writer.TryWrite(taskModel);
         }
 
+
+        public void ExecuteTask(CancellationToken cancellationToken)
+        {
+            _task =  Task.Factory.StartNew(async () => await Consume(cancellationToken),
+                cancellationToken,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+        }
+
         public async Task Consume(CancellationToken cancellationToken)
         {
-            await Task.Run(async () =>
+            // Receive the messages with id {Id} and process them
+            // When finished close gracefully. CancellationTokenSource
+            while (!ModelReader.Completion.IsCompleted && !cancellationToken.IsCancellationRequested)
             {
-                // Receive the messages with id {Id} and process them
-                // When finished close gracefully. CancellationTokenSource
-                while (!ModelReader.Completion.IsCompleted && !cancellationToken.IsCancellationRequested)
+                try
                 {
-                    try
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        var taskModel = await ModelReader.ReadAsync(cancellationToken);
-                        await ShowDelay(taskModel, cancellationToken);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        _logger.LogWarning($"The operation was cancelled for Task Executioner of type {Type}");
-                        await Task.CompletedTask;
-                    }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var taskModel = await ModelReader.ReadAsync(cancellationToken);
+                    await ShowDelay(taskModel, cancellationToken);
                 }
-            }, cancellationToken);
-
+                catch (OperationCanceledException)
+                {
+                    _logger.LogWarning($"The operation was cancelled for Task Executioner of type {Type}");
+                    await Task.CompletedTask;
+                }
+            }
         }
 
         private async Task ShowDelay(TaskModel obj, CancellationToken cancellationToken)
