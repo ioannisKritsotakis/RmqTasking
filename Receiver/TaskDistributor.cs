@@ -37,7 +37,7 @@ namespace Receiver
                         _logger.LogDebug($"Creating new TaskExecutioner for type {item.Type}");
                         runTask = new TaskExecutioner(item.Type, _logger);
                         _runningTasks.Add(item.Type, runTask);
-                        runTask.ExecuteTask(cancellationToken);
+                        await runTask.ExecuteTask(cancellationToken);
                     }
 
                     runTask.SendJob(item);

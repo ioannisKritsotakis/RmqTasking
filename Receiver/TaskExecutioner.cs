@@ -31,9 +31,9 @@ namespace Receiver
         }
 
 
-        public void ExecuteTask(CancellationToken cancellationToken)
+        public Task ExecuteTask(CancellationToken cancellationToken)
         {
-            _task =  Task.Factory.StartNew(async () => await Consume(cancellationToken),
+            return Task.Factory.StartNew(async () => await Consume(cancellationToken),
                 cancellationToken,
                 TaskCreationOptions.LongRunning,
                 TaskScheduler.Default);
