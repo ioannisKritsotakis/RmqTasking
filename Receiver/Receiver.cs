@@ -30,6 +30,7 @@ namespace Receiver
             using var connection = factory.CreateConnection();
             using var channel = connection.CreateModel();
 
+            channel.BasicQos(0, 1000, false);
             channel.QueueDeclare(queue: "hello", durable: false, exclusive: false, autoDelete: false, arguments: null);
 
             _logger.LogInformation(" [*] Waiting for messages.");
