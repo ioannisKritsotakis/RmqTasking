@@ -2,6 +2,7 @@
 using RabbitMQ.Client;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Receiver;
 
@@ -20,15 +21,18 @@ namespace TaskSender
                 channel.ExchangeDeclare("johny", "direct", false, false);
                 channel.QueueBind("hello", "johny", "");
 
-                foreach (var msg in Data())
+                foreach (var i in Enumerable.Range(0, 2))
                 {
-                    var message = JsonConvert.SerializeObject(msg);
-                    var body = Encoding.UTF8.GetBytes(message);
+                    foreach (var msg in Data())
+                    {
+                        msg.Id = (i * 10) + msg.Id;
+                        var message = JsonConvert.SerializeObject(msg);
+                        var body = Encoding.UTF8.GetBytes(message);
 
-                    channel.BasicPublish(exchange: "johny", routingKey: "", basicProperties: null, body: body);
-                    Console.WriteLine(" [x] Sent {0}", message);
+                        channel.BasicPublish(exchange: "johny", routingKey: "", basicProperties: null, body: body);
+                        Console.WriteLine(" [x] Sent {0}", message);
+                    }
                 }
-
             }
         }
 

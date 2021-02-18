@@ -37,14 +37,21 @@ namespace Receiver
                         _logger.LogDebug($"Creating new TaskExecutioner for type {item.Type}");
                         runTask = new TaskExecutioner(item.Type, _logger);
                         _runningTasks.Add(item.Type, runTask);
-                        await runTask.ExecuteTask(cancellationToken);
+                        await runTask.FireUpTask(cancellationToken);
                     }
 
-                    runTask.SendJob(item);
+                    runTask.SendNewJob(item);
                 }
                 catch (OperationCanceledException)
                 {
                     _logger.LogWarning("Operation was cancelled");
+                }
+                catch (AggregateException ae)
+                {
+                    foreach (var ex in ae.InnerExceptions)
+                    {
+                        _logger.LogError(ex, "The task threw and exception");
+                    }
                 }
 
             }
