@@ -9,13 +9,14 @@ namespace Receiver
     public class TaskExecutioner
     {
         private readonly Channel<TaskModel> _channel;
-
         public string Type { get; }
         private ChannelReader<TaskModel> ModelReader { get; }
 
         private readonly ILogger<TaskDistributor> _logger;
 
         public Task _task;
+
+        public bool IsProcessDown => _task != null && _task.IsFaulted;
 
         public TaskExecutioner(string type, ILogger<TaskDistributor> logger)
         {
@@ -30,7 +31,6 @@ namespace Receiver
             _logger.LogInformation($"Task {taskModel.Type} with id: {taskModel.Id:D2} - Received");
             return _channel.Writer.TryWrite(taskModel);
         }
-
 
         public Task FireUpTask(CancellationToken cancellationToken)
         {
@@ -53,6 +53,11 @@ namespace Receiver
                     var taskModel = await ModelReader.ReadAsync(cancellationToken);
                     await ShowDelay(taskModel, cancellationToken);
                 }
+                catch (ArgumentNullException ex)
+                {
+                    _logger.LogError($"The operation for Task Executioner of type {Type} threw an exception");
+                    await Task.FromException(ex);
+                }
                 catch (OperationCanceledException)
                 {
                     _logger.LogWarning($"The operation was cancelled for Task Executioner of type {Type}");
@@ -63,6 +68,7 @@ namespace Receiver
 
         private async Task ShowDelay(TaskModel obj, CancellationToken cancellationToken)
         {
+            if (obj.Type == "D") throw new ArgumentNullException();
             _logger.LogInformation($"Task {obj.Type} with id: {obj.Id:D2} - Started processing...");
             _logger.LogInformation($"Task {obj.Type} with id: {obj.Id:D2} - Awaiting {obj.DelayInSeconds} seconds");
             await Task.Delay(TimeSpan.FromSeconds(obj.DelayInSeconds), cancellationToken);
