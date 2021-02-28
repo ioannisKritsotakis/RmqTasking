@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Receiver.Models;
 using System;
 using System.Text;
 using System.Threading;
@@ -51,7 +52,7 @@ namespace Receiver
                 try
                 {
                     var obj = JsonConvert.DeserializeObject<TaskModel>(message);
-                    _distributionChannel.WriteToChannel(obj);
+                    _distributionChannel.WriteTaskModelToChannel(obj);
                 }
                 catch (Exception)
                 {

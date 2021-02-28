@@ -1,7 +1,6 @@
-﻿using System;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 
-namespace Receiver
+namespace Receiver.Models
 {
     public class TaskModel
     {
@@ -22,5 +21,10 @@ namespace Receiver
 
         [JsonProperty("type")]
         public string Type;
+
+        public bool IsEmpty()
+        {
+            return Type == null || DelayInSeconds == 0 || Id == 0;
+        }
     }
 }

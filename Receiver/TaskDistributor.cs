@@ -1,5 +1,8 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Receiver.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -30,17 +33,24 @@ namespace Receiver
             {
                 try
                 {
-                    var item = await _distributionChannel.Reader.ReadAsync(cancellationToken);
-                    var res = _runningTasks.TryGetValue(item.Type, out var runTask);
-                    if (!res)
+                    var msg = await _distributionChannel.Reader.ReadAsync(cancellationToken);
+                    var item = JsonConvert.DeserializeObject(msg) as JObject;
+                    var model = item?.ToObject<TaskModel>();
+                    var heartbeat = item?.ToObject<HeartbeatModel>();
+
+                    if (model != null && !model.IsEmpty())
                     {
-                        _logger.LogDebug($"Creating new TaskExecutioner for type {item.Type}");
-                        runTask = new TaskExecutioner(item.Type, _logger);
-                        _runningTasks.Add(item.Type, runTask);
-                        await runTask.FireUpTask(cancellationToken);
+                        await ProcessTaskModel(cancellationToken, model);
+                    }
+                    else if (heartbeat != null && !heartbeat.IsEmpty())
+                    {
+                        _logger.LogDebug("Processing heartbeat");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Received unknown item");
                     }
 
-                    runTask.SendNewJob(item);
                 }
                 catch (OperationCanceledException)
                 {
@@ -55,6 +65,25 @@ namespace Receiver
                 }
 
             }
+        }
+
+        private async Task ProcessTaskModel(CancellationToken cancellationToken, TaskModel taskModel)
+        {
+            var res = _runningTasks.TryGetValue(taskModel.Type, out var runTask);
+            if (!res)
+            {
+                _logger.LogDebug($"Creating new TaskExecutioner for type {taskModel.Type}");
+                runTask = new TaskExecutioner(taskModel.Type, _logger);
+                _runningTasks.Add(taskModel.Type, runTask);
+                await runTask.FireUpTask(cancellationToken);
+            }
+
+            if (runTask.IsProcessDown)
+            {
+                _logger.LogError($"{runTask.Type} has faulted");
+            }
+
+            runTask.SendNewJob(taskModel);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

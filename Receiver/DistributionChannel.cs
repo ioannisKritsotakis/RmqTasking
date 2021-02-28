@@ -1,25 +1,38 @@
-﻿using System.Threading.Channels;
+﻿using Newtonsoft.Json;
+using Receiver.Models;
+using System.Threading.Channels;
 
 namespace Receiver
 {
     public interface IDistributionChannel
     {
-        bool WriteToChannel(TaskModel item);
-        ChannelReader<TaskModel> Reader { get; }
+        bool WriteTaskModelToChannel(TaskModel item);
+        bool WriteHeartbeatToChannel(string item);
+        ChannelReader<string> Reader { get; }
     }
 
     public class DistributionChannel : IDistributionChannel
     {
-        private readonly Channel<TaskModel> _channel;
+        private readonly Channel<string> _channel;
 
-        public ChannelReader<TaskModel> Reader => _channel.Reader;
+        public bool WriteTaskModelToChannel(TaskModel item)
+        {
+            return _channel.Writer.TryWrite(JsonConvert.SerializeObject(item));
+        }
+
+        public bool WriteHeartbeatToChannel(string item)
+        {
+            return _channel.Writer.TryWrite(JsonConvert.SerializeObject(item));
+        }
+
+        public ChannelReader<string> Reader => _channel.Reader;
 
         public DistributionChannel()
         {
-            _channel = Channel.CreateUnbounded<TaskModel>();
+            _channel = Channel.CreateUnbounded<string>();
         }
 
-        public bool WriteToChannel(TaskModel item)
+        public bool WriteToChannel(string item)
         {
             return _channel.Writer.TryWrite(item);
         }

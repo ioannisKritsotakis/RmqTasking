@@ -1,10 +1,11 @@
 ﻿using Newtonsoft.Json;
 using RabbitMQ.Client;
+using Receiver.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Receiver;
+using System.Threading;
 
 namespace TaskSender
 {
@@ -21,6 +22,12 @@ namespace TaskSender
                 channel.ExchangeDeclare("johny", "direct", false, false);
                 channel.QueueBind("hello", "johny", "");
 
+
+                var heart = JsonConvert.SerializeObject(new HeartbeatModel(DateTime.UtcNow.Ticks));
+
+                channel.BasicPublish(exchange: "johny", routingKey: "", basicProperties: null, body: Encoding.UTF8.GetBytes(heart));
+                Console.WriteLine(" [x] Sent {0}", heart);
+
                 foreach (var i in Enumerable.Range(0, 2))
                 {
                     foreach (var msg in Data())
@@ -31,6 +38,7 @@ namespace TaskSender
 
                         channel.BasicPublish(exchange: "johny", routingKey: "", basicProperties: null, body: body);
                         Console.WriteLine(" [x] Sent {0}", message);
+                        Thread.Sleep(100);
                     }
                 }
             }

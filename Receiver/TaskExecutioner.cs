@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Receiver.Models;
 using System;
 using System.Threading;
 using System.Threading.Channels;
@@ -14,9 +15,9 @@ namespace Receiver
 
         private readonly ILogger<TaskDistributor> _logger;
 
-        public Task _task;
+        public Task RunningTask;
 
-        public bool IsProcessDown => _task != null && _task.IsFaulted;
+        public bool IsProcessDown => RunningTask != null && (RunningTask.IsFaulted && RunningTask.Status == TaskStatus.Faulted);
 
         public TaskExecutioner(string type, ILogger<TaskDistributor> logger)
         {
@@ -34,11 +35,13 @@ namespace Receiver
 
         public Task FireUpTask(CancellationToken cancellationToken)
         {
-            return Task.Factory.StartNew(
+            var createdTask = Task.Factory.StartNew(
                 async () => await Consume(cancellationToken),
                 cancellationToken,
                 TaskCreationOptions.LongRunning,
                 TaskScheduler.Default);
+            RunningTask = createdTask.Unwrap();
+            return createdTask;
         }
 
         public async Task Consume(CancellationToken cancellationToken)
