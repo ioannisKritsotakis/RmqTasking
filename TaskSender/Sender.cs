@@ -21,13 +21,7 @@ namespace TaskSender
                 channel.QueueDeclare(queue: "hello", durable: false, exclusive: false, autoDelete: false, arguments: null);
                 channel.ExchangeDeclare("johny", "direct", false, false);
                 channel.QueueBind("hello", "johny", "");
-
-
-                var heart = JsonConvert.SerializeObject(new HeartbeatModel(DateTime.UtcNow.Ticks));
-
-                channel.BasicPublish(exchange: "johny", routingKey: "", basicProperties: null, body: Encoding.UTF8.GetBytes(heart));
-                Console.WriteLine(" [x] Sent {0}", heart);
-
+                
                 foreach (var i in Enumerable.Range(0, 2))
                 {
                     foreach (var msg in Data())

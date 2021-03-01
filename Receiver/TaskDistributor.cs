@@ -14,7 +14,7 @@ namespace Receiver
     {
     }
 
-    public class TaskDistributor : IHostedService, ITaskDistributor
+    public class TaskDistributor : BackgroundService, ITaskDistributor
     {
         private readonly Dictionary<string, TaskExecutioner> _runningTasks = new Dictionary<string, TaskExecutioner>();
         private readonly ILogger<TaskDistributor> _logger;
@@ -26,7 +26,7 @@ namespace Receiver
             _distributionChannel = distributionChannel;
         }
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        protected override async Task ExecuteAsync(CancellationToken cancellationToken)
         {
             _logger.LogDebug("Started TaskDistributor");
             while (!_distributionChannel.Reader.Completion.IsCompleted && !cancellationToken.IsCancellationRequested)
@@ -66,7 +66,7 @@ namespace Receiver
 
             }
         }
-
+      
         private async Task ProcessTaskModel(CancellationToken cancellationToken, TaskModel taskModel)
         {
             var res = _runningTasks.TryGetValue(taskModel.Type, out var runTask);
@@ -84,11 +84,6 @@ namespace Receiver
             }
 
             runTask.SendNewJob(taskModel);
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
         }
     }
 }

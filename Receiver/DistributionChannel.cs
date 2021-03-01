@@ -7,7 +7,7 @@ namespace Receiver
     public interface IDistributionChannel
     {
         bool WriteTaskModelToChannel(TaskModel item);
-        bool WriteHeartbeatToChannel(string item);
+        bool WriteHeartbeatToChannel(HeartbeatModel item);
         ChannelReader<string> Reader { get; }
     }
 
@@ -20,7 +20,7 @@ namespace Receiver
             return _channel.Writer.TryWrite(JsonConvert.SerializeObject(item));
         }
 
-        public bool WriteHeartbeatToChannel(string item)
+        public bool WriteHeartbeatToChannel(HeartbeatModel item)
         {
             return _channel.Writer.TryWrite(JsonConvert.SerializeObject(item));
         }

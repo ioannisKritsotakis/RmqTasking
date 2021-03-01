@@ -26,6 +26,8 @@ namespace Receiver
             services.AddSingleton<IDistributionChannel, DistributionChannel>();
 
             services.AddHostedService<TaskDistributor>();
+
+            services.AddHostedService<HeartbeatService>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
