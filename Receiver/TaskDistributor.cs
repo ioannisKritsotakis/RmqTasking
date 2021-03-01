@@ -44,7 +44,7 @@ namespace Receiver
                     }
                     else if (heartbeat != null && !heartbeat.IsEmpty())
                     {
-                        _logger.LogDebug("Processing heartbeat");
+                       await ProcessHeartbeat(cancellationToken);
                     }
                     else
                     {
@@ -66,7 +66,7 @@ namespace Receiver
 
             }
         }
-      
+
         private async Task ProcessTaskModel(CancellationToken cancellationToken, TaskModel taskModel)
         {
             var res = _runningTasks.TryGetValue(taskModel.Type, out var runTask);
@@ -84,6 +84,16 @@ namespace Receiver
             }
 
             runTask.SendNewJob(taskModel);
+        }
+
+        private async Task ProcessHeartbeat(CancellationToken cancellationToken)
+        {
+            foreach (var (_, runTask) in _runningTasks)
+            {
+                if (!runTask.IsProcessDown) continue;
+                _logger.LogWarning($"Fixing Type {runTask.Type} TaskExecutioner");
+                await runTask.FireUpTask(cancellationToken);
+            }
         }
     }
 }

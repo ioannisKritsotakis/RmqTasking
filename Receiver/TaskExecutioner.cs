@@ -17,6 +17,8 @@ namespace Receiver
 
         public Task RunningTask;
 
+        private int fakeFaulty = 2;
+
         public bool IsProcessDown => RunningTask != null && (RunningTask.IsFaulted && RunningTask.Status == TaskStatus.Faulted);
 
         public TaskExecutioner(string type, ILogger<TaskDistributor> logger)
@@ -59,6 +61,7 @@ namespace Receiver
                 catch (ArgumentNullException ex)
                 {
                     _logger.LogError($"The operation for Task Executioner of type {Type} threw an exception");
+                    fakeFaulty--;
                     await Task.FromException(ex);
                 }
                 catch (OperationCanceledException)
@@ -71,7 +74,7 @@ namespace Receiver
 
         private async Task ShowDelay(TaskModel obj, CancellationToken cancellationToken)
         {
-            if (obj.Type == "D") throw new ArgumentNullException();
+            if (obj.Type == "D" && fakeFaulty > 0) throw new ArgumentNullException();
             _logger.LogInformation($"Task {obj.Type} with id: {obj.Id:D2} - Started processing...");
             _logger.LogInformation($"Task {obj.Type} with id: {obj.Id:D2} - Awaiting {obj.DelayInSeconds} seconds");
             await Task.Delay(TimeSpan.FromSeconds(obj.DelayInSeconds), cancellationToken);

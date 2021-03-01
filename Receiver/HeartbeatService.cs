@@ -29,7 +29,7 @@ namespace Receiver
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                _logger.LogDebug("Sending heartbeat");
+                //_logger.LogDebug("Sending heartbeat");
                 _distributionChannel.WriteHeartbeatToChannel(new HeartbeatModel(DateTime.UtcNow.Ticks));
                 await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
             }
