@@ -31,8 +31,7 @@ namespace Receiver
             var factory = new ConnectionFactory() { HostName = "localhost" };
 
             using var connection = factory.CreateConnection();
-            using var channel = connection.CreateModel();
-            _rmqChannel = channel;
+             _rmqChannel = connection.CreateModel();
             return base.StartAsync(cancellationToken);
         }
 
@@ -79,7 +78,7 @@ namespace Receiver
             var channelTaskCompletionSource = new TaskCompletionSource<bool>();
             cancellationToken.Register(() => channelTaskCompletionSource.TrySetResult(true));
 
-            void OnConsumerShutDown(object? sender, ShutdownEventArgs args)
+            void OnConsumerShutDown(object sender, ShutdownEventArgs args)
             {
                 channelTaskCompletionSource.TrySetException(new Exception(args.ToString()));
             }

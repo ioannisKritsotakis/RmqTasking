@@ -26,8 +26,6 @@ namespace Receiver
                     services.AddHostedService<HeartbeatService>();
                     services.AddHostedService<Receiver>();
                     services.AddHostedService<TaskDistributor>();
-
-
                 });
 
 

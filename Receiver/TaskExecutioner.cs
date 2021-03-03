@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using Receiver.Models;
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -9,9 +11,8 @@ namespace Receiver
 {
     public class TaskExecutioner
     {
-        private readonly Channel<TaskModel> _channel;
+        private readonly Queue<(Guid, TaskModel)> _channel;
         public string Type { get; }
-        private ChannelReader<TaskModel> ModelReader { get; }
 
         private readonly ILogger<TaskDistributor> _logger;
 
@@ -19,20 +20,20 @@ namespace Receiver
 
         private int fakeFaulty = 2;
 
-        public bool IsProcessDown => RunningTask != null && (RunningTask.IsFaulted && RunningTask.Status == TaskStatus.Faulted);
+        public bool IsProcessDown =>
+            RunningTask != null && (RunningTask.IsFaulted && RunningTask.Status == TaskStatus.Faulted);
 
         public TaskExecutioner(string type, ILogger<TaskDistributor> logger)
         {
-            _channel = Channel.CreateUnbounded<TaskModel>();
-            ModelReader = _channel.Reader;
+            _channel = new Queue<(Guid, TaskModel)>();
             Type = type;
             _logger = logger;
         }
 
-        public bool SendNewJob(TaskModel taskModel)
+        public void SendNewJob(TaskModel taskModel)
         {
             _logger.LogInformation($"Task {taskModel.Type} with id: {taskModel.Id:D2} - Received");
-            return _channel.Writer.TryWrite(taskModel);
+            WriteItem(taskModel);
         }
 
         public Task FireUpTask(CancellationToken cancellationToken)
@@ -48,15 +49,14 @@ namespace Receiver
 
         public async Task Consume(CancellationToken cancellationToken)
         {
-            // Receive the messages with id {Id} and process them
-            // When finished close gracefully. CancellationTokenSource
-            while (!ModelReader.Completion.IsCompleted && !cancellationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var taskModel = await ModelReader.ReadAsync(cancellationToken);
+                    var (guid, taskModel) = await ReadItem(cancellationToken);
                     await ShowDelay(taskModel, cancellationToken);
+                    AckItem(guid);
                 }
                 catch (ArgumentNullException ex)
                 {
@@ -78,7 +78,40 @@ namespace Receiver
             _logger.LogInformation($"Task {obj.Type} with id: {obj.Id:D2} - Started processing...");
             _logger.LogInformation($"Task {obj.Type} with id: {obj.Id:D2} - Awaiting {obj.DelayInSeconds} seconds");
             await Task.Delay(TimeSpan.FromSeconds(obj.DelayInSeconds), cancellationToken);
-            _logger.LogInformation($"Task {obj.Type} with id: {obj.Id:D2} - Finished awaiting {obj.DelayInSeconds} seconds");
+            _logger.LogInformation(
+                $"Task {obj.Type} with id: {obj.Id:D2} - Finished awaiting {obj.DelayInSeconds} seconds");
+        }
+
+        private Task<(Guid, TaskModel)> ReadItem(CancellationToken cancellationToken)
+        {
+            return Task.Run(
+                () =>
+                {
+                    (Guid, TaskModel) taskModel;
+                    while (!_channel.TryPeek(out taskModel))
+                    {
+                        Task.Delay(500, cancellationToken);
+                    }
+
+                    return taskModel;
+                }, cancellationToken);
+        }
+
+        private void WriteItem(TaskModel item)
+        {
+            _channel.Enqueue((Guid.NewGuid(), item));
+        }
+
+        private bool AckItem(Guid guid)
+        {
+            (Guid, TaskModel) kvpair;
+            if (!_channel.TryPeek(out kvpair)) return true;
+            if (kvpair.Item1 != guid)
+            {
+                return false;
+            }
+            _channel.Dequeue();
+            return true;
         }
     }
 }
