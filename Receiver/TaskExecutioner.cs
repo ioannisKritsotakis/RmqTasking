@@ -11,7 +11,7 @@ namespace Receiver
 {
     public class TaskExecutioner
     {
-        private readonly Queue<(Guid, TaskModel)> _channel;
+        private readonly QueueWithAck<TaskModel> _queue;
         public string Type { get; }
 
         private readonly ILogger<TaskDistributor> _logger;
@@ -25,7 +25,7 @@ namespace Receiver
 
         public TaskExecutioner(string type, ILogger<TaskDistributor> logger)
         {
-            _channel = new Queue<(Guid, TaskModel)>();
+            _queue = new QueueWithAck<TaskModel>();
             Type = type;
             _logger = logger;
         }
@@ -33,7 +33,7 @@ namespace Receiver
         public void SendNewJob(TaskModel taskModel)
         {
             _logger.LogInformation($"Task {taskModel.Type} with id: {taskModel.Id:D2} - Received");
-            WriteItem(taskModel);
+            _queue.WriteItem(taskModel);
         }
 
         public Task FireUpTask(CancellationToken cancellationToken)
@@ -54,9 +54,9 @@ namespace Receiver
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var (guid, taskModel) = await ReadItem(cancellationToken);
-                    await ShowDelay(taskModel, cancellationToken);
-                    AckItem(guid);
+                    var item = await _queue.ReadItem(cancellationToken);
+                    await ShowDelay(item.Value, cancellationToken);
+                    _queue.AckItem(item);
                 }
                 catch (ArgumentNullException ex)
                 {
@@ -80,38 +80,6 @@ namespace Receiver
             await Task.Delay(TimeSpan.FromSeconds(obj.DelayInSeconds), cancellationToken);
             _logger.LogInformation(
                 $"Task {obj.Type} with id: {obj.Id:D2} - Finished awaiting {obj.DelayInSeconds} seconds");
-        }
-
-        private Task<(Guid, TaskModel)> ReadItem(CancellationToken cancellationToken)
-        {
-            return Task.Run(
-                () =>
-                {
-                    (Guid, TaskModel) taskModel;
-                    while (!_channel.TryPeek(out taskModel))
-                    {
-                        Task.Delay(500, cancellationToken);
-                    }
-
-                    return taskModel;
-                }, cancellationToken);
-        }
-
-        private void WriteItem(TaskModel item)
-        {
-            _channel.Enqueue((Guid.NewGuid(), item));
-        }
-
-        private bool AckItem(Guid guid)
-        {
-            (Guid, TaskModel) kvpair;
-            if (!_channel.TryPeek(out kvpair)) return true;
-            if (kvpair.Item1 != guid)
-            {
-                return false;
-            }
-            _channel.Dequeue();
-            return true;
         }
     }
 }
