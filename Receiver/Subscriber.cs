@@ -16,8 +16,8 @@ namespace Receiver
     {
         private readonly ILogger<Subscriber> _logger;
         private readonly IDistributionChannel _distributionChannel;
-
         private IModel _rmqChannel;
+        private IConnection _connection;
 
         public Subscriber(ILogger<Subscriber> logger, IDistributionChannel distributionChannel)
         {
@@ -27,104 +27,33 @@ namespace Receiver
 
         public override Task StartAsync(CancellationToken cancellationToken)
         {
+            var factory = new ConnectionFactory() {HostName = "localhost"};
+            _connection = factory.CreateConnection();
+            _rmqChannel = _connection.CreateModel();
+            _rmqChannel.BasicQos(0, 1000, false);
+            _rmqChannel.QueueDeclare(queue: "hello", durable: false, exclusive: false, autoDelete: false,
+                arguments: null);
+            _connection.ConnectionShutdown += RabbitMQ_ConnectionShutdown;  
 
-            var factory = new ConnectionFactory() { HostName = "localhost" };
-
-            using var connection = factory.CreateConnection();
-             _rmqChannel = connection.CreateModel();
             return base.StartAsync(cancellationToken);
         }
 
-        public override Task StopAsync(CancellationToken cancellationToken)
+        protected override Task ExecuteAsync(CancellationToken cancellationToken)
         {
-
-            return base.StopAsync(cancellationToken);
-        }
-
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            var firstIteration = true;
-            _logger.LogInformation("Initiating RMQ subscription");
-
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                try
-                {
-                    _logger.LogDebug("Establishing connection to RMQ");
-                    if (firstIteration)
-                    {
-                        _rmqChannel.BasicQos(0, 1000, false);
-                        _rmqChannel.QueueDeclare(queue: "hello", durable: false, exclusive: false, autoDelete: false, arguments: null);
-                        firstIteration = false;
-                    }
-
-                    using var ch = _rmqChannel;
-
-                    await ChannelConsumeAsync(_rmqChannel, stoppingToken);
-
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "An unhandled exception occurred");
-                    await Task.Delay(TimeSpan.FromMilliseconds(50), stoppingToken);
-                }
-            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var consumer = new EventingBasicConsumer(_rmqChannel);
+            consumer.Received += ConsumerOnReceived();
+            consumer.Shutdown += OnConsumerShutdown;
+            consumer.Registered += OnConsumerRegistered;
+            consumer.Unregistered += OnConsumerUnregistered;
+            consumer.ConsumerCancelled += OnConsumerConsumerCancelled;
+            
+            _rmqChannel.BasicConsume(queue: "hello", autoAck: true, consumer: consumer);
+            return Task.CompletedTask;
         }
 
 
-        private async Task<bool> ChannelConsumeAsync(IModel channel, CancellationToken cancellationToken)
-        {
-
-            var channelTaskCompletionSource = new TaskCompletionSource<bool>();
-            cancellationToken.Register(() => channelTaskCompletionSource.TrySetResult(true));
-
-            void OnConsumerShutDown(object sender, ShutdownEventArgs args)
-            {
-                channelTaskCompletionSource.TrySetException(new Exception(args.ToString()));
-            }
-
-            var consumer = new EventingBasicConsumer(channel);
-            consumer.Received += EventConsumerOnReceived();
-            consumer.Shutdown += OnConsumerShutDown;
-
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                channel.BasicQos(0, 1000, false);
-
-                channel.BasicConsume(queue: "hello", autoAck: true, consumer: consumer);
-
-
-
-                return await channelTaskCompletionSource.Task;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogInformation(ex, "On channel consume async");
-                return false;
-            }
-            finally
-            {
-                // cancels subscription
-                try
-                {
-                    if (channel.IsOpen)
-                    {
-                        lock (channel)
-                        {
-                            channel.Close();
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogInformation(ex, "could close model gracefully");
-                }
-            }
-        }
-
-        private EventHandler<BasicDeliverEventArgs> EventConsumerOnReceived()
+        private EventHandler<BasicDeliverEventArgs> ConsumerOnReceived()
         {
             return (model, ea) =>
             {
@@ -137,11 +66,29 @@ namespace Receiver
                 }
                 catch (Exception)
                 {
-                    _logger.LogError(" [x] Received {0}", message);
+                    _logger.LogError(" [x] Received {message}");
                 }
             };
         }
 
+        private void OnConsumerConsumerCancelled(object sender, ConsumerEventArgs e)
+        {
+        }
+
+        private void OnConsumerUnregistered(object sender, ConsumerEventArgs e)
+        {
+        }
+
+        private void OnConsumerRegistered(object sender, ConsumerEventArgs e)
+        {
+        }
+
+        private void OnConsumerShutdown(object sender, ShutdownEventArgs e)
+        {
+        }
+
+        private void RabbitMQ_ConnectionShutdown(object sender, ShutdownEventArgs e)
+        {
+        }
     }
 }
-

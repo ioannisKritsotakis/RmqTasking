@@ -22,9 +22,10 @@ namespace Receiver
                 .UseSerilog()
                 .ConfigureServices(services =>
                 {
+                    services.AddHostedService<Subscriber>();
                     services.AddSingleton<IDistributionChannel, DistributionChannel>();
                     services.AddHostedService<HeartbeatService>();
-                    services.AddHostedService<Receiver>();
+                    //services.AddHostedService<Receiver>();
                     services.AddHostedService<TaskDistributor>();
                 });
 
