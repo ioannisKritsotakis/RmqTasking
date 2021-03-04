@@ -1,71 +1,75 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Receiver.Models;
 using System;
 using System.Text;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
-using Receiver;
 
-namespace RmqTasking
+namespace Receiver
 {
-    public class Receiver
+    public interface IReceiver
     {
-        private readonly CancellationTokenSource _tokenSource;
-        public Receiver()
-        {
-            _tokenSource = new CancellationTokenSource();
-            Console.CancelKeyPress += ConsoleOnCancelKeyPress();
+    }
 
+    public class Receiver : BackgroundService, IReceiver
+    {
+        private readonly ILogger<Receiver> _logger;
+        private readonly IDistributionChannel _distributionChannel;
+        public Receiver(IDistributionChannel distributionChannel, ILogger<Receiver> logger)
+        {
+            _distributionChannel = distributionChannel;
+            _logger = logger;
         }
 
-        private ConsoleCancelEventHandler ConsoleOnCancelKeyPress()
-        {
-            return delegate (object sender, ConsoleCancelEventArgs e) {
-                e.Cancel = true;
-                _tokenSource.Cancel();
-            };
-        }
-
-        public void Start()
+        public void MainBody()
         {
             var factory = new ConnectionFactory() { HostName = "localhost" };
             using var connection = factory.CreateConnection();
             using var channel = connection.CreateModel();
 
+            channel.BasicQos(0, 1000, false);
             channel.QueueDeclare(queue: "hello", durable: false, exclusive: false, autoDelete: false, arguments: null);
 
-            Console.WriteLine(" [*] Waiting for messages.");
+            _logger.LogInformation(" [*] Waiting for messages.");
 
             var consumer = new EventingBasicConsumer(channel);
-            consumer.Received += consumerOnReceived();
+            consumer.Received += ConsumerOnReceived();
 
             channel.BasicConsume(queue: "hello", autoAck: true, consumer: consumer);
-
-            Console.WriteLine(" Press [enter] to exit.");
             Console.ReadLine();
-            _tokenSource.Cancel();
         }
 
-        private EventHandler<BasicDeliverEventArgs> consumerOnReceived()
+        private EventHandler<BasicDeliverEventArgs> ConsumerOnReceived()
         {
             return (model, ea) =>
             {
-                var task = new TaskDistributor();
                 var body = ea.Body.ToArray();
                 var message = Encoding.UTF8.GetString(body);
                 try
                 {
                     var obj = JsonConvert.DeserializeObject<TaskModel>(message);
-                    // Send to appropriate Task. Create if needed.
-                    task.Distribute(obj, _tokenSource.Token);
+                    _distributionChannel.WriteTaskModelToChannel(obj);
                 }
                 catch (Exception)
                 {
-                    Console.WriteLine(" [x] Received {0}", message);
+                    _logger.LogError(" [x] Received {0}", message);
                 }
             };
+        }
+
+        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            return Task.Run(MainBody, stoppingToken);
+        }
+
+        public override Task StartAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("Starting Receiver");
+            return base.StartAsync(cancellationToken);
         }
     }
 }
